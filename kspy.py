@@ -20,28 +20,32 @@ if __name__ == "__main__":
     zk.start()
 
     data, stats = zk.get('/consumers/{0}/offsets/{1}/{2}'.format(args.consumer, args.topic, args.partition))
-    old_value = data.decode()
-    print "Current offset {0}".format(data.decode())
+    old_offset = data.decode()
 
     if args.offset:
         zk.set('/consumers/{0}/offsets/{1}/{2}'.format(args.consumer, args.topic, args.partition), b"%s" % (args.offset))
-        print "New offset %s" % (args.offset)
 
-    if args.broker:
-        kclient = KafkaClient("%s" % (args.broker))
+    try:
+        if args.broker:
+            kclient = KafkaClient("%s" % (args.broker))
 
-        # add support for more than 1 parititon
-        consumer = SimpleConsumer(kclient, args.consumer, args.topic, partitions=[0])
-        consumer.max_buffer_size = None
-        if args.offset:
-            consumer.seek(0, 1)
+            # add support for more than 1 parititon
+            consumer = SimpleConsumer(kclient, args.consumer, args.topic, partitions=[0])
+            consumer.max_buffer_size = None
+            if args.offset:
+                consumer.seek(0, 1)
 
-        message = consumer.get_message()
-        if message:
-            print("MSG: " + str(message[1][3]) + "\tOFFSET: " + str(message[0]) + "\t KEY: " + str(message.message.key) )
+            message = consumer.get_message()
+            if message:
+                print "DEBUG: restoring"
+                print("MSG: " + str(message[1][3]) + "\tOFFSET: " + str(message[0]) + "\t KEY: " + str(message.message.key) )
 
-    if not args.set:
-        zk.set('/consumers/{0}/offsets/{1}/{2}'.format(args.consumer, args.topic, args.partition), b"%s" % (args.offset))
-        print "Rollback to %s" % (old_value)
-    else:
-        print "Saving offset %s" % (args.offset)
+        if not args.set:
+            zk.set('/consumers/{0}/offsets/{1}/{2}'.format(args.consumer, args.topic, args.partition), b"%s" % (old_offset))
+        else:
+            print "Old offset %s" % (old_offset)
+            print "New offset %s" % (args.offset)
+    except:
+        # zk.set('/consumers/{0}/offsets/{1}/{2}'.format(args.consumer, args.topic, args.partition), b"%s" % (old_offset))
+        pass
+
